@@ -1,6 +1,7 @@
 ﻿TODO
-* Support for multiple libraries
-* Test for eBook availability
 * Custom error messages depending on what "fails"
+* Add author last name to search term & remove check - should remove a lot of code!
+* Output to CSV file with title available & format
+* Support for multiple libraries
 
 NOTES
