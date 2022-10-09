@@ -8,8 +8,15 @@ namespace WhatCanIReadToday
 {
     public class Book
     {
-        public int BookId { get; set; }
+        public long BookId { get; set; }
         public string Title { get; set; }
+
+        public override string ToString()
+        {
+            // Make things look pretty in Test Explorer
+            return Title.ToString() + " | " + Author.ToString();
+        }
+
         public string Author { get; set; }
         public string Authorlf { get; set; }
         public string AdditionalAuthors { get; set; }
