@@ -20,7 +20,7 @@ namespace WhatCanIReadToday
     {
         protected IWebDriver driver;
         protected Library library;
-        
+
         [SetUp]
         public void Setup()
         {
@@ -28,7 +28,7 @@ namespace WhatCanIReadToday
             driver = new ChromeDriver();
 
             // Set Library Info
-            library = JsonConvert.DeserializeObject<Library>(File.ReadAllText("C:\\PersonalProjects\\WhatCanIReadToday\\Libraries\\gay.json"));
+            library = JsonConvert.DeserializeObject<Library>(File.ReadAllText("C:\\PersonalProjects\\WhatCanIReadToday\\Libraries\\johnandjudygaylibrary.json"));
         }
 
         [TearDown]
@@ -44,9 +44,10 @@ namespace WhatCanIReadToday
             var libraryURL = library.SearchURL;
             var libraryName = library.Name;
             bool isAvail = false;
+            Format format = Format.Book;
 
-            // Format Book Title for matching
-            bookTitle = Regex.Replace(bookTitle, "[^A-z^\\s^'^\\-^0-9^,^&^#].*", "").TrimEnd();
+            // Format Book Title for optimal searching
+            bookTitle = SanitizeSearch(bookTitle);
 
             // Go to McKinney Library Search Page
             driver.Navigate().GoToUrl(libraryURL);
@@ -79,41 +80,47 @@ namespace WhatCanIReadToday
 
             // Get availability information
             var availabilityGrid = firstRecord.FindElement(By.ClassName("related-manifestations"));
-            var availabilities = availabilityGrid.FindElements(By.ClassName("grouped"));
 
-            // Loop through availabilities
-            // Find "Book"
-            foreach (var availability in availabilities)
-            {
-                // Look at results for Book
-                if (availability.FindElement(By.LinkText("Book")).Displayed)
-                {
-                    // Confirm status is "On Shelf"
-                    var onShelfEmblem = availability.FindElement(By.ClassName("status-on-shelf")).Text;
+            // Check availability
+            isAvail = IsAvailableInFormat(availabilityGrid, format);
 
-                    if (onShelfEmblem == "On Shelf")
-                    {
-                        isAvail = true;
-                        break;
-                    }
-                }
-            }
+            Assert.IsTrue(isAvail);
+
+            //var availabilities = availabilityGrid.FindElements(By.ClassName("grouped"));
+
+            //// Loop through availabilities
+            //// Find "Book"
+            //foreach (var availability in availabilities)
+            //{
+            //    // Look at results for Book 
+            //    if (availability.FindElement(By.LinkText(Format.Book.ToString())).Displayed)
+            //    {
+            //        // Confirm status is "On Shelf"
+            //        var onShelfEmblem = availability.FindElement(By.ClassName("status-on-shelf")).Text;
+
+            //        if (onShelfEmblem == AvailabilityStatus.OnShelf.ToString())
+            //        {
+            //            isAvail = true;
+            //            break;
+            //        }
+            //    }
+            //}
 
             // Confirm title is available as book
-            Assert.IsTrue(isAvail);
+            //Assert.IsTrue(isAvail);
         }
 
         [TestCaseSource(typeof(BookData), nameof(BookData.GetTestData))]
-        [Ignore("Not ready yet")]
         public void McKinneyLibrary_eBook(string bookTitle)
         {
             // Set Test Data
             var libraryURL = library.SearchURL;
             var libraryName = library.Name;
             bool isAvail = false;
+            Format format = Format.eBook;
 
             // Format Book Title for matching
-            bookTitle = Regex.Replace(bookTitle, "[^A-z^\\s^'^\\-^0-9^,^&^#].*", "").TrimEnd();
+            bookTitle = SanitizeSearch(bookTitle);
 
             // Go to McKinney Library Search Page
             driver.Navigate().GoToUrl(libraryURL);
@@ -140,38 +147,36 @@ namespace WhatCanIReadToday
             // Confirm #1 has correct title
             var recordTitle = firstRecord.FindElement(By.ClassName("result-title")).Text;
 
-            //var author = firstRecord.FindElement(By.XPath("//*[@id=\"groupedRecordcc9fe276-0dff-d73d-3d55-ff47babfd7bd-eng\"]/div/div[2]/div[3]/a"));
-            //Console.WriteLine(author);
-
             // TODO: This currently "passes" on The Nightingale, but it's another book by another author
             // TODO: Need to include author in comparison
             Assert.That(recordTitle.ToUpper(), Does.StartWith(bookTitle.ToUpper()), "Not in library");
 
             // Get availability information
             var availabilityGrid = firstRecord.FindElement(By.ClassName("related-manifestations"));
-            var availabilities = availabilityGrid.FindElements(By.ClassName("grouped"));
-
-            // Loop through availabilities
-            // Find "Book"
-            foreach (var availability in availabilities)
-            {
-                // Look at results for Book
-                if (availability.FindElement(By.LinkText("eBook")).Displayed)
-                {
-                    // Confirm status is "On Shelf"
-                    var onShelfEmblem = availability.FindElement(By.ClassName("status-on-shelf")).Text;
-
-                    if (onShelfEmblem == "On Shelf")
-                    {
-                        isAvail = true;
-                        log.Info(bookTitle + " is available as an eBook");
-                        break;
-                    }
-                }
-            }
-
+            
+            // Check availability
+            isAvail = IsAvailableInFormat(availabilityGrid, format);
+            
             // Confirm title is available as book
             Assert.IsTrue(isAvail);
+        }
+
+        private string SanitizeSearch(string searchTerm)
+        {
+            return Regex.Replace(searchTerm, "[^A-z^\\s^'^\\-^0-9^,^&^#].*", "").TrimEnd();
+        }
+
+        private bool IsAvailableInFormat(IWebElement availabilityGrid, Format format)
+        {
+            // Find badge for format
+            var availability = availabilityGrid.FindElement(By.LinkText(format.ToString()));
+
+            if (availability.Text == format.ToString())
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 
@@ -184,7 +189,7 @@ namespace WhatCanIReadToday
                 PrepareHeaderForMatch = args => args.Header.Replace("-", "").Replace(" ", "")
             };
 
-            using (var reader = new StreamReader("C:\\PersonalProjects\\WhatCanIReadToday\\Books.csv"))
+            using (var reader = new StreamReader("C:\\PersonalProjects\\WhatCanIReadToday\\Books_LocalTest.csv"))
             {
                 using (var csv = new CsvReader(reader, config))
                 {

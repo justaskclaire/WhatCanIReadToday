@@ -1,0 +1,6 @@
+﻿TODO
+* Support for multiple libraries
+* Test for eBook availability
+* Custom error messages depending on what "fails"
+
+NOTES
