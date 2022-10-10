@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
@@ -16,7 +16,7 @@ using NUnit.Framework.Internal;
 
 namespace WhatCanIReadToday
 {
-    public class McKinneyLibrary
+    public class PlanoLibrary
     {
         protected IWebDriver driver;
         protected Library library;
@@ -28,7 +28,7 @@ namespace WhatCanIReadToday
             driver = new ChromeDriver();
 
             // Set Library Info
-            library = JsonConvert.DeserializeObject<Library>(File.ReadAllText("C:\\PersonalProjects\\WhatCanIReadToday\\Libraries\\johnandjudygaylibrary.json"));
+            library = JsonConvert.DeserializeObject<Library>(File.ReadAllText("C:\\PersonalProjects\\WhatCanIReadToday\\Libraries\\davislibrary.json"));
         }
 
         [TearDown]
@@ -38,14 +38,14 @@ namespace WhatCanIReadToday
         }
 
         [TestCaseSource(typeof(BookData), nameof(BookData.GetTestData))]
-        public void McKinneyLibrary_Book(Book book)
+        public void PlanoLibrary_Book(Book book)
         {
             // Set Test Data
             bool isAvail;
             Format format = Format.Book;
 
             // Get availability information
-            var availabilityGrid = GetTopResult(library, book);
+            var availabilityGrid = GetTopResult(library, book, format);
 
             // Check availability
             isAvail = IsAvailableInFormat(availabilityGrid, format);
@@ -54,69 +54,108 @@ namespace WhatCanIReadToday
         }
 
         [TestCaseSource(typeof(BookData), nameof(BookData.GetTestData))]
-        public void McKinneyLibrary_eBook(Book book)
+        public void PlanoLibrary_eBook(Book book)
         {
             // Set Test Data
             bool isAvail;
             Format format = Format.eBook;
 
             // Get availability information
-            var availabilityGrid = GetTopResult(library, book);
+            var availabilityGrid = GetTopResult(library, book, format);
 
             // Check availability
             isAvail = IsAvailableInFormat(availabilityGrid, format);
-            
+
             // Confirm title is available as book
             Assert.IsTrue(isAvail);
         }
 
-        private IWebElement GetTopResult(Library library, Book book)
+        private IWebElement GetTopResult(Library library, Book book, Format format)
         {
             // Sanitize book title search term
             string bookTitle = SanitizeSearch(book.Title);
-            
-            // Go to McKinney Library Search Page
+
+            // Go to Plano Library Search Page
             driver.Navigate().GoToUrl(library.SearchURL);
 
             // Identify Search Textbox
-            var searchBox = driver.FindElement(By.Name("lookfor"));
+            var searchBox = driver.FindElement(By.XPath("//*[@id=\"q\"]"));
             searchBox.Click();
 
             // Enter search term and search
             searchBox.SendKeys(bookTitle);
             searchBox.SendKeys(Keys.Enter);
 
-            // Identify filter section
-            var availableNow = driver.FindElement(By.XPath("//*[@id=\"facet-accordion\"]/div[3]/div[1]"));
-            availableNow.Click();
-
             // Toggle Available @ Library Filter
-            var availAtMyLibrary = driver.FindElement(By.PartialLinkText(library.Name));
-            availAtMyLibrary.Click();
+            var libraryFilter = driver.FindElement(By.PartialLinkText(library.Name));
+            libraryFilter.Click();
+
+            // Toggle "Only Show Available" filter
+            var filterPane = driver.FindElement(By.ClassName("searchLimitsColumn"));
+
+            var onlyShowFilter = filterPane.FindElement(By.Name("submit_0"));
+            onlyShowFilter.Click();
+
+            // Need to bind filterPane again (the 'Books' filter fails if we don't have this line)
+            filterPane = driver.FindElement(By.ClassName("searchLimitsColumn"));
+
+            // Toggle Format filter
+            var formatFilter = filterPane.FindElement(By.PartialLinkText("Books"));
+            formatFilter.Click();
+
+
+
+            // End of working code
+
+            
+
+            // BEGIN Experiment Code
+
+
 
             // Find all results
-            var results = driver.FindElements(By.ClassName("result"));
+            var resultList = driver.FindElement(By.Id("results_wrapper"));
+            var results = resultList.FindElements(By.ClassName("cell_wrapper"));
 
             // Loop through looking for a match on Title and Author
             foreach (var result in results)
             {
                 // Check Title
-                string resultTitle = result.FindElement(By.ClassName("result-title")).Text;
+                var resultTitleDiv = result.FindElement(By.ClassName("INITIAL_TITLE_SRCH"));
+                var resultTitle = resultTitleDiv.FindElement(By.ClassName("hideIE")).Text;
                 bool titleIsMatch = resultTitle.ToUpper().StartsWith(bookTitle.ToUpper());
 
                 // Check Author
-                bool isCorrectAuthor = result.FindElement(By.LinkText(book.Authorlf)).Displayed;
+                // Same class exists on 3 author divs; need to get all and iterate through
 
-                if (titleIsMatch && isCorrectAuthor)
-                {
-                    // Return this record
-                    return result.FindElement(By.ClassName("related-manifestations"));
-                }
+                // TODO: Pick up here later
+
+
+
+                //// Check Author
+                //bool isCorrectAuthor = result.FindElement(By.LinkText(book.Authorlf)).Displayed;
+
+                //if (titleIsMatch && isCorrectAuthor)
+                //{
+                //    // Return this record
+                //    return result.FindElement(By.ClassName("related-manifestations"));
+                //}
             }
+
+
+            // END Experiment Code
+
+
+
+
+
+
+
+
 
             return null;
         }
-        
+
         private string SanitizeSearch(string searchTerm)
         {
             return Regex.Replace(searchTerm, "[^A-z^\\s^'^\\-^0-9^,^&^#].*", "").TrimEnd();
@@ -133,26 +172,6 @@ namespace WhatCanIReadToday
             }
 
             return false;
-        }
-    }
-
-    public static class BookData
-    {
-        public static IEnumerable<Book> GetTestData()
-        {
-            var config = new CsvConfiguration(System.Globalization.CultureInfo.InvariantCulture)
-            {
-                PrepareHeaderForMatch = args => args.Header.Replace("-", "").Replace(" ", "")
-            };
-
-            using (var reader = new StreamReader("C:\\PersonalProjects\\WhatCanIReadToday\\Books.csv"))
-            {
-                using (var csv = new CsvReader(reader, config))
-                {
-                    List<Book> books = csv.GetRecords<Book>().Where(b => b.ExclusiveShelf == "to-read").ToList();
-                    return books;
-                }
-            }
         }
     }
 }
