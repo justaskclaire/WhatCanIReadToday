@@ -45,10 +45,18 @@ namespace WhatCanIReadToday
             Format format = Format.Book;
 
             // Get availability information
-            var availabilityGrid = GetTopResult(library, book);
+            var availabilityGrid = GetTopResult(library, book, format);
 
             // Check availability
             isAvail = IsAvailableInFormat(availabilityGrid, format);
+
+            // Write to output file
+            if (isAvail)
+            {
+                var filepath = "C:\\PersonalProjects\\WhatCanIReadToday\\WhatCanIReadToday.csv";
+                var availability = book.Title + " by " + book.Authorlf + " is available as a " + format.ToString();
+                File.AppendAllText(filepath, availability + Environment.NewLine);
+            }
 
             Assert.IsTrue(isAvail);
         }
@@ -61,16 +69,24 @@ namespace WhatCanIReadToday
             Format format = Format.eBook;
 
             // Get availability information
-            var availabilityGrid = GetTopResult(library, book);
+            var availabilityGrid = GetTopResult(library, book, format);
 
             // Check availability
             isAvail = IsAvailableInFormat(availabilityGrid, format);
+
+            // Write to output file
+            if (isAvail)
+            {
+                var filepath = "C:\\PersonalProjects\\WhatCanIReadToday\\WhatCanIReadToday.csv";
+                var availability = book.Title + " by " + book.Authorlf + " is available as an " + format.ToString();
+                File.AppendAllText(filepath, availability + Environment.NewLine);
+            }
             
             // Confirm title is available as book
             Assert.IsTrue(isAvail);
         }
 
-        private IWebElement GetTopResult(Library library, Book book)
+        private IWebElement GetTopResult(Library library, Book book, Format format)
         {
             // Sanitize book title search term
             string bookTitle = SanitizeSearch(book.Title);
@@ -86,13 +102,17 @@ namespace WhatCanIReadToday
             searchBox.SendKeys(bookTitle);
             searchBox.SendKeys(Keys.Enter);
 
-            // Identify filter section
-            var availableNow = driver.FindElement(By.XPath("//*[@id=\"facet-accordion\"]/div[3]/div[1]"));
-            availableNow.Click();
+            // Only search by specific library if looking for physical copy
+            if (format == Format.Book)
+            {
+                // Identify filter section
+                var availableNow = driver.FindElement(By.XPath("//*[@id=\"facet-accordion\"]/div[3]/div[1]"));
+                availableNow.Click();
 
-            // Toggle Available @ Library Filter
-            var availAtMyLibrary = driver.FindElement(By.PartialLinkText(library.Name));
-            availAtMyLibrary.Click();
+                // Toggle Available @ Library Filter
+                var availAtMyLibrary = driver.FindElement(By.PartialLinkText(library.Name));
+                availAtMyLibrary.Click();
+            }            
 
             // Find all results
             var results = driver.FindElements(By.ClassName("result"));
